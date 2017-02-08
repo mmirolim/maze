@@ -9,7 +9,6 @@ import (
 	"image/gif"
 	"math/rand"
 	"os"
-	"os/exec"
 	"strings"
 	"time"
 )
@@ -98,14 +97,9 @@ func main() {
 	var err error
 	for _, img := range data {
 		if f, err = os.Create(img.name); err == nil {
-			if err = gif.EncodeAll(f, img.img); err == nil {
-				cmd := exec.Command("google-chrome", img.name)
-				err = cmd.Start()
+			if err = gif.EncodeAll(f, img.img); err != nil {
+				panic(err)
 			}
-		}
-
-		if err != nil {
-			panic(err)
 		}
 	}
 }
