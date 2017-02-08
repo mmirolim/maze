@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"image"
 	"image/color"
@@ -14,6 +15,8 @@ import (
 )
 
 var (
+	w      = flag.Int("w", 10, "width of maze")
+	h      = flag.Int("h", 10, "height of maze")
 	red    = color.RGBA{R: 255, A: 255}
 	blue   = color.RGBA{B: 255, A: 255}
 	green  = color.RGBA{G: 255, A: 255}
@@ -23,15 +26,13 @@ var (
 )
 
 func main() {
-
+	flag.Parse()
+	flag.PrintDefaults()
 	stack := NewStack()
 	start := time.Now()
-	w, h := 30, 20
 	cw, ch, ww := 20, 20, 5
 
-	maze, path := NewMaze(
-		w, h,
-		point{0, 0}, point{27, 18},
+	maze, path := NewMaze(*w, *h, point{0, 0}, point{*w - 1, *h - 1},
 		DFS(stack, time.Now().Unix()),
 	)
 
@@ -39,7 +40,7 @@ func main() {
 	maze.ResetVisitedCells()
 
 	start = time.Now()
-	fmt.Println(DrawTxt(maze))
+	fmt.Println(maze)
 	fmt.Printf("DrawTxt Time %v\n", time.Since(start))
 
 	start = time.Now()
@@ -53,8 +54,8 @@ func main() {
 	mazeAnimGen := AnimatePath(maze, nil, path, nil, white, black, cw, ch, ww, 10)
 	fmt.Printf("Draw Maze Gen Time %v\n", time.Since(start))
 
-	mazePath := make([]*cell, 0, w)
-	visited := make([]*cell, 0, w)
+	mazePath := make([]*cell, 0, *w)
+	visited := make([]*cell, 0, *w)
 
 	start = time.Now()
 	isPathFound := FindPath(maze, maze.Begin(), maze.End(), &mazePath, &visited)
@@ -106,14 +107,11 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
-
 	}
-
 }
 
 func DFS(stack *stack, seed int64) func(*Maze) (*Maze, []*cell) {
 	return func(m *Maze) (*Maze, []*cell) {
-		// TODO add path S->E
 		rand.Seed(seed)
 		genPath := make([]*cell, 0, m.w*m.h)
 		current := m.Begin()
@@ -140,9 +138,9 @@ func DFS(stack *stack, seed int64) func(*Maze) (*Maze, []*cell) {
 	}
 }
 
-// returns all visited cells
+// returns path and all visited cells
+// DFS recur search
 func FindPath(m *Maze, start, end *cell, path, visited *[]*cell) bool {
-
 	if start.visited {
 		return false
 	}
@@ -169,6 +167,7 @@ func FindPath(m *Maze, start, end *cell, path, visited *[]*cell) bool {
 	return false
 }
 
+// returns path and all visited cells
 // BFS search with storing dist for each cell from start point
 func FindShortestPath(m *Maze, start, end *cell, path, visited *[]*cell) bool {
 	q := make([]*cell, 0, 4)
@@ -241,8 +240,7 @@ type point struct {
 }
 
 type cell struct {
-	// doors if exits
-	left, up, right, down bool
+	left, up, right, down bool // doors if exits
 	visited               bool
 	point
 }
@@ -251,9 +249,9 @@ type Maze struct {
 	w, h        int
 	entry, exit point
 	cells       [][]*cell
-	path        []point
 }
 
+// remove adjacent cells walls
 func (m *Maze) RmWall(cell1, cell2 *cell) {
 	dx := cell1.x - cell2.x
 	dy := cell1.y - cell2.y
@@ -285,6 +283,7 @@ func (m *Maze) RmWall(cell1, cell2 *cell) {
 
 }
 
+// return adjecent filtered cells
 func (m *Maze) AdjacentCells(c *cell, filter func(*cell) bool) []*cell {
 	p := c.point
 	cells := []*cell{}
@@ -316,24 +315,19 @@ func isConnected(c1, c2 *cell) bool {
 	return false
 }
 
-func NewMaze(w, h int, entry, exit point, generator func(*Maze) (*Maze, []*cell)) (*Maze, []*cell) {
+func NewMaze(w, h int, entry, exit point,
+	generator func(*Maze) (*Maze, []*cell)) (*Maze, []*cell) {
+
 	if w < 1 || h < 1 {
 		panic("w, h should be > 1")
 	}
 	for _, p := range []point{entry, exit} {
-		if p.x > w-1 || p.x < 0 ||
-			p.y > h-1 || p.y < 0 {
+		if p.x > w-1 || p.x < 0 || p.y > h-1 || p.y < 0 {
 			panic("start and end point should be inside maze")
 		}
 	}
 
-	m := &Maze{
-		w:     w,
-		h:     h,
-		entry: entry,
-		exit:  exit,
-		cells: make([][]*cell, w),
-	}
+	m := &Maze{w: w, h: h, entry: entry, exit: exit, cells: make([][]*cell, w)}
 
 	for x := range m.cells {
 		if m.cells[x] == nil {
@@ -342,15 +336,12 @@ func NewMaze(w, h int, entry, exit point, generator func(*Maze) (*Maze, []*cell)
 		for y := range m.cells[x] {
 			m.cells[x][y] = &cell{point: point{x, y}}
 		}
-
 	}
 
 	if generator == nil {
 		return m, nil
 	}
-	// unmark visited cells
-	m, path := generator(m)
-	return m, path
+	return generator(m)
 }
 
 func (m *Maze) ResetVisitedCells() {
@@ -359,7 +350,6 @@ func (m *Maze) ResetVisitedCells() {
 			m.cells[x][y].visited = false
 		}
 	}
-
 }
 
 func (m *Maze) Begin() *cell {
@@ -370,34 +360,8 @@ func (m *Maze) End() *cell {
 	return m.cells[m.exit.x][m.exit.y]
 }
 
-type stack struct {
-	cells []*cell
-}
-
-func NewStack() *stack {
-	return &stack{make([]*cell, 0, 10)}
-}
-
-func (s *stack) Push(c *cell) {
-	s.cells = append(s.cells, c)
-}
-
-func (s *stack) Pop() *cell {
-	c := s.cells[len(s.cells)-1]
-	s.cells = s.cells[:len(s.cells)-1]
-	return c
-}
-
-func (s *stack) Len() int {
-	return len(s.cells)
-}
-
-func DrawTxt(m *Maze) string {
-	var (
-		output = []byte{}
-		hline  = []byte{}
-		vline  = []byte{}
-	)
+func (m *Maze) String() string {
+	output, hline, vline := []byte{}, []byte{}, []byte{}
 
 	for y := 0; y < m.h; y++ {
 		for x := 0; x < m.w; x++ {
@@ -426,50 +390,32 @@ func DrawTxt(m *Maze) string {
 
 		output = append(output, append(hline, []byte("+\n")...)...)
 		output = append(output, append(vline, []byte("|\n")...)...)
-		hline = hline[:0]
-		vline = vline[:0]
+		hline, vline = hline[:0], vline[:0]
 	}
 
-	return strings.Join([]string{
-		string(output),
-		strings.Repeat("+---", m.w),
-		"+\n",
-	}, "")
+	return strings.Join([]string{string(output), strings.Repeat("+---", m.w), "+\n"}, "")
 }
 
 func Draw(m *Maze, fill, border color.Color, cw, ch, ww int) *image.Paletted {
-	imgW := m.w * cw
-	imgH := m.h * ch
-
-	r := image.Rect(0, 0, imgW, imgH)
+	r := image.Rect(0, 0, m.w*cw, m.h*cw)
 	img := image.NewPaletted(r, palette.WebSafe)
 
 	for y := 0; y < m.h; y++ {
 		for x := 0; x < m.w; x++ {
 			cell := m.cells[x][y]
 			rect := image.Rect(cell.x*cw, cell.y*ch, cell.x*cw+cw, cell.y*ch+ch)
-			DrawCell(cell,
-				img.SubImage(rect).(*image.Paletted),
-				fill, border, cw, ch, ww)
-
+			DrawCell(cell, img.SubImage(rect).(*image.Paletted), fill, border, cw, ch, ww)
 		}
 	}
-
 	return img
-
 }
 
-func DrawCell(
-	cell *cell,
-	img *image.Paletted,
+func DrawCell(cell *cell, img *image.Paletted,
 	fill, border color.Color,
-	cw, ch, ww int,
-) {
+	cw, ch, ww int) {
+
 	rect := img.Bounds()
-	x0 := rect.Min.X
-	y0 := rect.Min.Y
-	x1 := rect.Max.X
-	y1 := rect.Max.Y
+	x0, y0, x1, y1 := rect.Min.X, rect.Min.Y, rect.Max.X, rect.Max.Y
 	for y := y0; y < y1; y++ {
 		for x := x0; x < x1; x++ {
 			img.Set(x, y, fill)
@@ -486,39 +432,25 @@ func DrawCell(
 }
 
 // speed in 100th of second
-func AnimatePath(
-	m *Maze,
-	visited,
-	path []*cell,
+func AnimatePath(m *Maze, visited, path []*cell,
 	fillVis, fillPath, border color.Color,
-	cw, ch, ww, speed int,
-) *gif.GIF {
+	cw, ch, ww, speed int) *gif.GIF {
 
-	imgW := m.w * cw
-	imgH := m.h * ch
-
-	r := image.Rect(0, 0, imgW, imgH)
+	r := image.Rect(0, 0, m.w*cw, m.h*ch)
 	img := image.NewPaletted(r, palette.WebSafe)
 	imgs := []image.Image{img}
 
-	if len(visited) > 0 {
-		for _, cell := range visited {
-			rect := image.Rect(cell.x*cw, cell.y*ch, cell.x*cw+cw, cell.y*ch+ch)
-			cellImg := image.NewPaletted(rect, palette.WebSafe)
-			DrawCell(cell,
-				cellImg,
-				fillVis, border, cw, ch, ww)
-			imgs = append(imgs, cellImg)
-
-		}
-	}
-
-	for _, cell := range path {
+	lenVisited := len(visited)
+	// join visited and path cells
+	visited = append(visited, path...)
+	for i, cell := range visited {
+		fill := fillVis
 		rect := image.Rect(cell.x*cw, cell.y*ch, cell.x*cw+cw, cell.y*ch+ch)
 		cellImg := image.NewPaletted(rect, palette.WebSafe)
-		DrawCell(cell,
-			cellImg,
-			fillPath, border, cw, ch, ww)
+		if i >= lenVisited {
+			fill = fillPath // fill path diff
+		}
+		DrawCell(cell, cellImg, fill, border, cw, ch, ww)
 		imgs = append(imgs, cellImg)
 
 	}
@@ -534,4 +466,26 @@ func AnimatePath(
 	}
 
 	return gifAnim
+}
+
+type stack struct {
+	cells []*cell
+}
+
+func NewStack() *stack {
+	return &stack{make([]*cell, 0, 10)}
+}
+
+func (s *stack) Push(c *cell) {
+	s.cells = append(s.cells, c)
+}
+
+func (s *stack) Pop() *cell {
+	c := s.cells[len(s.cells)-1]
+	s.cells = s.cells[:len(s.cells)-1]
+	return c
+}
+
+func (s *stack) Len() int {
+	return len(s.cells)
 }
