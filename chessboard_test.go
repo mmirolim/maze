@@ -9,7 +9,7 @@ import (
 func TestDrawChessboard(t *testing.T) {
 	pieces := []ChessPiece{}
 	for _, pos := range []string{"d2", "a8", "g4"} {
-		p, err := NewChessPiece(Queen, pos, "images/queen.png")
+		p, err := NewChessPiece(Queen, pos)
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -14,6 +14,8 @@ import (
 	"golang.org/x/image/math/fixed"
 )
 
+const queenImg = "images/queen.png"
+
 type ChessPieceNames string
 
 var (
@@ -26,8 +28,13 @@ type ChessPiece struct {
 	pos  string
 }
 
-func NewChessPiece(name ChessPieceNames, pos, imgPath string) (*ChessPiece, error) {
-	f, err := os.Open(imgPath)
+func NewChessPiece(name ChessPieceNames, pos string) (*ChessPiece, error) {
+	var imageName string
+	switch name {
+	case Queen:
+		imageName = queenImg
+	}
+	f, err := os.Open(imageName)
 	if err != nil {
 		return nil, err
 	}
@@ -90,18 +97,18 @@ func (b *ChessBoard) Draw() (*image.RGBA, error) {
 		board.Bounds().Add(image.Point{X: b.cellSize, Y: b.cellSize}),
 		board, image.ZP, draw.Src)
 
-	for _, piece := range b.pieces {
-		// returns x and y coords of cell
-		piecePostion := func(p *ChessPiece) (int, int) {
-			x := int(p.pos[0] - 'a' + 1)
-			y := int(p.pos[1] - '0')
-			if x < 0 || x > 8 || y < 0 || y > 8 {
-				panic(fmt.Sprintf("wrong piece pos format %+v", p.pos))
-			}
-
-			return x, 8 - y + 1
+	// returns x and y coords of cell
+	piecePostion := func(p *ChessPiece) (int, int) {
+		x := int(p.pos[0] - 'a' + 1)
+		y := int(p.pos[1] - '0')
+		if x < 0 || x > 8 || y < 0 || y > 8 {
+			panic(fmt.Sprintf("wrong piece pos format %+v", p.pos))
 		}
 
+		return x, 8 - y + 1
+	}
+
+	for _, piece := range b.pieces {
 		scaledPieceImg := image.NewRGBA(image.Rect(0, 0, b.cellSize, b.cellSize))
 		draw.BiLinear.Scale(
 			scaledPieceImg, scaledPieceImg.Bounds(), piece.img, piece.img.Bounds(),
