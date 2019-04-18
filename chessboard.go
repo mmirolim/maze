@@ -99,7 +99,7 @@ func (b *ChessBoard) Draw() (*image.RGBA, error) {
 		board, image.ZP, draw.Src)
 
 	// returns x and y coords of cell
-	piecePostion := func(p *ChessPiece) (int, int) {
+	piecePosition := func(p *ChessPiece) (int, int) {
 		x := int(p.pos[0] - 'a' + 1)
 		y := int(p.pos[1] - '0')
 		if x < 0 || x > 8 || y < 0 || y > 8 {
@@ -108,7 +108,7 @@ func (b *ChessBoard) Draw() (*image.RGBA, error) {
 
 		return x, 8 - y + 1
 	}
-
+	// draw pieces on the board
 	for _, piece := range b.pieces {
 		scaledPieceImg := image.NewRGBA(image.Rect(0, 0, b.cellSize, b.cellSize))
 		draw.BiLinear.Scale(
@@ -116,12 +116,12 @@ func (b *ChessBoard) Draw() (*image.RGBA, error) {
 			draw.Over, nil,
 		)
 
-		x, y := piecePostion(&piece)
+		x, y := piecePosition(&piece)
 		draw.Draw(m,
 			scaledPieceImg.Bounds().Add(image.Point{X: x * b.cellSize, Y: y * b.cellSize}),
 			scaledPieceImg, image.ZP, draw.Over)
 	}
-
+	// draw legends
 	d := &font.Drawer{
 		Dst:  m,
 		Src:  image.NewUniform(black),
