@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"image"
 	"image/color"
@@ -139,4 +140,95 @@ func (b *ChessBoard) Draw() (*image.RGBA, error) {
 	}
 
 	return m, nil
+}
+
+// TheEightQueensProblemMySolution to the 8-queen puzzle
+// “The eight queens puzzle is the problem
+// of placing eight chess queens on an 8×8 chessboard
+// so that no two queens threaten each other.
+// Thus, a solution requires that no two queens
+// share the same row, column, or diagonal.”
+func TheEightQueensProblemMySolution() []ChessPiece {
+	// convert pos to chessboard pos
+	toChessPos := func(i, j int) string {
+		return string([]byte{byte(i) + 'a' - 1, byte(j) + '0'})
+	}
+	// i is letters axis, j is numbers axis
+	check := func(i1, j1, i2, j2 int) bool {
+		// check horizontal and vertical coords
+		if i1 == i2 || j1 == j2 {
+			return false
+		}
+
+		// check diagonal
+		c1pos := j1 - i1
+		c1neg := j1 + i1
+		c2pos := j2 - i2
+		c2neg := j2 + i2
+		if c1pos == c2pos || c1neg == c2neg {
+			return false
+		}
+
+		return true
+	}
+	type piece struct {
+		piece ChessPiece
+		pos   [2]int
+	}
+
+	pieces := []piece{}
+	var search func(i, j int) error
+
+	search = func(i, j int) error {
+		// found all pieces
+		if len(pieces) > 7 {
+			return nil
+		}
+		// change row
+		if j > 8 {
+			j = 1
+			i++
+		}
+		// end of chessboard
+		if i > 8 {
+			return errors.New("no valid position")
+		}
+		invalidPos := false
+		for _, p := range pieces {
+			if !check(p.pos[0], p.pos[1], i, j) {
+				invalidPos = true
+				break
+			}
+		}
+		if !invalidPos {
+			// valid position
+			p, err := NewChessPiece(Queen, toChessPos(i, j))
+			if err != nil {
+				panic(err)
+			}
+			pieces = append(pieces, piece{*p, [2]int{i, j}})
+		}
+
+		j++
+		err := search(i, j)
+		if err != nil {
+			// on err take last element
+			// and continue from that position with shift
+			p := pieces[len(pieces)-1]
+			pieces = pieces[:len(pieces)-1]
+			return search(p.pos[0], p.pos[1]+1)
+		}
+
+		return nil
+	}
+
+	chessPieces := make([]ChessPiece, 0, 8)
+	// start search
+	_ = search(1, 1)
+
+	for i := range pieces {
+		chessPieces = append(chessPieces, pieces[i].piece)
+	}
+
+	return chessPieces
 }
