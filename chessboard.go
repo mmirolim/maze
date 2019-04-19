@@ -227,8 +227,55 @@ func TheEightQueensProblemMySolution() []ChessPiece {
 	_ = search(1, 1)
 
 	for i := range pieces {
-		chessPieces = append(chessPieces, pieces[i].piece)
+		p, err := NewChessPiece(Queen, toChessPos(pieces[i][0], pieces[i][1]))
+		if err != nil {
+			panic(err)
+		}
+
+		chessPieces = append(chessPieces, *p)
 	}
 
 	return chessPieces
+}
+
+// TheEightQueensProblemNW solution to 8-queen puzzle
+// described by Niklaus Wirth in
+// http://plbpc001.ouhk.edu.hk/~mt311/optional-reading/stepwise.pdf
+func TheEightQueensProblemNW() {
+	var board, pointer, safe
+
+	tryColumn := func() {
+		for advancePointer {
+			testSquare
+			if safe || lastSquare {
+				break
+			}
+		}
+	}
+
+	regress := func() {
+		reconsiderPriorColumn
+		if !regressOutOfFirstCol {
+			removeQueen
+			if lastSquare {
+				reconsiderPriorColumn
+				if !regressOutOfFirstCol {
+					removeQueen
+				}
+			}
+		}
+	}
+	
+	considerFirstColumn
+	for tryColumn {
+		if safe {
+			setQueen
+			considerNextColumn
+		} else {
+			regress
+		}
+		if lastColDone || regressOutOfFirstCol {
+			break
+		}
+	}
 }
