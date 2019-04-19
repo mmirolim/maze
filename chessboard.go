@@ -216,66 +216,125 @@ func TheEightQueensProblemMySolution() []ChessPiece {
 			// and continue from that position with shift
 			p := pieces[len(pieces)-1]
 			pieces = pieces[:len(pieces)-1]
-			return search(p.pos[0], p.pos[1]+1)
+			return search(p[0], p[1]+1)
 		}
 
 		return nil
 	}
 
-	chessPieces := make([]ChessPiece, 0, 8)
 	// start search
 	_ = search(1, 1)
 
-	for i := range pieces {
-		p, err := NewChessPiece(Queen, toChessPos(pieces[i][0], pieces[i][1]))
-		if err != nil {
-			panic(err)
-		}
-
-		chessPieces = append(chessPieces, *p)
-	}
-
-	return chessPieces
+	return pieces
 }
 
 // TheEightQueensProblemNW solution to 8-queen puzzle
 // described by Niklaus Wirth in
 // http://plbpc001.ouhk.edu.hk/~mt311/optional-reading/stepwise.pdf
-func TheEightQueensProblemNW() {
-	var board, pointer, safe
+// returns slice of values where index is column and value is row
+func TheEightQueensProblemNW() []int {
+	// current column
+	var j int // 0 <= j <= 9
+	// solutions of rows to place queens
+	// size defined for max j value
+	var x = make([]int, 10) // vals 0 <= v <= 8
 
+	// predicates
+	var safe bool
+	lastSquare := func() bool {
+		return x[j] == 8
+	}
+
+	lastColDone := func() bool {
+		return j > 8
+	}
+
+	regressOutOfFirstCol := func() bool {
+		return j < 1
+	}
+	// instructions
+	considerFirstColumn := func() {
+		j = 1
+		x[0] = 0
+	}
+	considerNextColumn := func() {
+		j = j + 1
+		x[j] = 0
+	}
+	reconsiderPriorColumn := func() {
+		j = j - 1
+	}
+	advancePointer := func() {
+		x[j] = x[j] + 1
+	}
+
+	// auxiliary variables for efficience of testSquare
+	rowIsFree := make([]bool, 9) // vals 1:8 number of rows
+	for i := range rowIsFree {
+		rowIsFree[i] = true
+	}
+	// /-diagonal is free
+	diagonal1IsFree := make([]bool, 17) // vals 2:16, sum of coords
+	for i := range diagonal1IsFree {
+		diagonal1IsFree[i] = true
+	}
+	// \-diagonal is free
+	diagonal2IsFree := make([]bool, 15) // values -7:7 diff of coords, 7 should be added on index check
+	for i := range diagonal2IsFree {
+		diagonal2IsFree[i] = true
+	}
+
+	testSquare := func() {
+		safe = rowIsFree[x[j]] && diagonal1IsFree[j+x[j]] && diagonal2IsFree[j-x[j]+7]
+	}
+
+	setQueen := func() {
+		rowIsFree[x[j]] = false
+		diagonal1IsFree[j+x[j]] = false
+		diagonal2IsFree[j-x[j]+7] = false
+	}
+	removeQueen := func() {
+		rowIsFree[x[j]] = true
+		diagonal1IsFree[j+x[j]] = true
+		diagonal2IsFree[j-x[j]+7] = true
+	}
 	tryColumn := func() {
-		for advancePointer {
-			testSquare
-			if safe || lastSquare {
+		for {
+			advancePointer()
+			testSquare()
+			if safe || lastSquare() {
 				break
 			}
 		}
 	}
 
 	regress := func() {
-		reconsiderPriorColumn
-		if !regressOutOfFirstCol {
-			removeQueen
-			if lastSquare {
-				reconsiderPriorColumn
-				if !regressOutOfFirstCol {
-					removeQueen
+		reconsiderPriorColumn()
+		if !regressOutOfFirstCol() {
+			removeQueen()
+			if lastSquare() {
+				reconsiderPriorColumn()
+				if !regressOutOfFirstCol() {
+					removeQueen()
 				}
 			}
 		}
 	}
-	
-	considerFirstColumn
-	for tryColumn {
+
+	considerFirstColumn()
+	for {
+		tryColumn()
 		if safe {
-			setQueen
-			considerNextColumn
+			setQueen()
+			considerNextColumn()
 		} else {
-			regress
+			regress()
 		}
-		if lastColDone || regressOutOfFirstCol {
+		if lastColDone() || regressOutOfFirstCol() {
 			break
 		}
 	}
+
+	// trim redundant
+	return x[1:9]
 }
