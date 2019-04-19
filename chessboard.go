@@ -235,14 +235,15 @@ func TheEightQueensProblemMySolution() []ChessPiece {
 func TheEightQueensProblemNW() []int {
 	// current column
 	var j int // 0 <= j <= 9
+
 	// solutions of rows to place queens
 	// size defined for max j value
 	var x = make([]int, 10) // vals 0 <= v <= 8
-
+	i := 0                  // data to store x[j] for efficiency
 	// predicates
 	var safe bool
 	lastSquare := func() bool {
-		return x[j] == 8
+		return i == 8
 	}
 
 	lastColDone := func() bool {
@@ -255,17 +256,19 @@ func TheEightQueensProblemNW() []int {
 	// instructions
 	considerFirstColumn := func() {
 		j = 1
-		x[0] = 0
+		i = 0
 	}
 	considerNextColumn := func() {
+		x[j] = i
 		j = j + 1
-		x[j] = 0
+		i = 0
 	}
 	reconsiderPriorColumn := func() {
 		j = j - 1
+		i = x[j]
 	}
 	advancePointer := func() {
-		x[j] = x[j] + 1
+		i = i + 1
 	}
 
 	// auxiliary variables for efficience of testSquare
@@ -285,18 +288,18 @@ func TheEightQueensProblemNW() []int {
 	}
 
 	testSquare := func() {
-		safe = rowIsFree[x[j]] && diagonal1IsFree[j+x[j]] && diagonal2IsFree[j-x[j]+7]
+		safe = rowIsFree[i] && diagonal1IsFree[j+i] && diagonal2IsFree[j-i+7]
 	}
 
 	setQueen := func() {
-		rowIsFree[x[j]] = false
-		diagonal1IsFree[j+x[j]] = false
-		diagonal2IsFree[j-x[j]+7] = false
+		rowIsFree[i] = false
+		diagonal1IsFree[j+i] = false
+		diagonal2IsFree[j-i+7] = false
 	}
 	removeQueen := func() {
-		rowIsFree[x[j]] = true
-		diagonal1IsFree[j+x[j]] = true
-		diagonal2IsFree[j-x[j]+7] = true
+		rowIsFree[i] = true
+		diagonal1IsFree[j+i] = true
+		diagonal2IsFree[j-i+7] = true
 	}
 	tryColumn := func() {
 		for {
