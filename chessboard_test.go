@@ -37,7 +37,23 @@ func TestTheEightQueensProblemMySolution(t *testing.T) {
 	if len(pieces) != 8 {
 		t.Errorf("solution not found, expected 8 got %v", len(pieces))
 	}
-	board := NewChessBoard(60, pieces)
+	// convert pos to chessboard pos
+	toChessPos := func(i, j int) string {
+		return string([]byte{byte(i) + 'a' - 1, byte(j) + '0'})
+	}
+
+	chessPieces := make([]ChessPiece, 0, 8)
+
+	for i := range pieces {
+		p, err := NewChessPiece(Queen, toChessPos(pieces[i][0], pieces[i][1]))
+		if err != nil {
+			panic(err)
+		}
+
+		chessPieces = append(chessPieces, *p)
+	}
+
+	board := NewChessBoard(60, chessPieces)
 	img, err := board.Draw()
 	if err != nil {
 		t.Fatal(err)

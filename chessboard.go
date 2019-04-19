@@ -148,11 +148,7 @@ func (b *ChessBoard) Draw() (*image.RGBA, error) {
 // so that no two queens threaten each other.
 // Thus, a solution requires that no two queens
 // share the same row, column, or diagonal.”
-func TheEightQueensProblemMySolution() []ChessPiece {
-	// convert pos to chessboard pos
-	toChessPos := func(i, j int) string {
-		return string([]byte{byte(i) + 'a' - 1, byte(j) + '0'})
-	}
+func TheEightQueensProblemMySolution() [][2]int {
 	// i is letters axis, j is numbers axis
 	check := func(i1, j1, i2, j2 int) bool {
 		// check horizontal and vertical coords
@@ -171,14 +167,9 @@ func TheEightQueensProblemMySolution() []ChessPiece {
 
 		return true
 	}
-	type piece struct {
-		piece ChessPiece
-		pos   [2]int
-	}
 
-	pieces := []piece{}
+	pieces := [][2]int{}
 	var search func(i, j int) error
-
 	search = func(i, j int) error {
 		// found all pieces
 		if len(pieces) > 7 {
@@ -195,18 +186,14 @@ func TheEightQueensProblemMySolution() []ChessPiece {
 		}
 		invalidPos := false
 		for _, p := range pieces {
-			if !check(p.pos[0], p.pos[1], i, j) {
+			if !check(p[0], p[1], i, j) {
 				invalidPos = true
 				break
 			}
 		}
 		if !invalidPos {
 			// valid position
-			p, err := NewChessPiece(Queen, toChessPos(i, j))
-			if err != nil {
-				panic(err)
-			}
-			pieces = append(pieces, piece{*p, [2]int{i, j}})
+			pieces = append(pieces, [2]int{i, j})
 		}
 
 		j++
