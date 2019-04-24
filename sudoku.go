@@ -5,9 +5,10 @@ import (
 	"image/color"
 	"strconv"
 
+	"github.com/golang/freetype/truetype"
 	"golang.org/x/image/draw"
 	"golang.org/x/image/font"
-	"golang.org/x/image/font/basicfont"
+	"golang.org/x/image/font/gofont/goregular"
 	"golang.org/x/image/math/fixed"
 )
 
@@ -25,14 +26,20 @@ func DrawSudokuBoard(cellSize int, num [3][3][3][3]int) (*image.RGBA, error) {
 	box3x3 := image.NewRGBA(image.Rect(0, 0, box3x3Size, box3x3Size))
 	cell := image.NewRGBA(image.Rect(0, 0, cellSize, cellSize))
 	// number's font
-	// TODO make bigger
+	fontVal, err := truetype.Parse(goregular.TTF)
+	if err != nil {
+		return nil, err
+	}
+	fontOptionSize := 30
+	fontFace := truetype.NewFace(fontVal, &truetype.Options{Size: float64(fontOptionSize)})
 	d := &font.Drawer{
 		Dst:  cell,
 		Src:  image.NewUniform(black),
-		Face: basicfont.Face7x13,
+		Face: fontFace,
 		Dot:  fixed.Point26_6{},
 	}
-	// TODO why this does not work here? d.Dot = fixed.P(cellSize/2, cellSize/2)
+
+	digitPos := fixed.P(cellSize/2-fontOptionSize/4, cellSize/2+fontOptionSize/3)
 	// draw boxes on a board
 	for i := 0; i < 3; i++ {
 		for j := 0; j < 3; j++ {
@@ -44,7 +51,7 @@ func DrawSudokuBoard(cellSize int, num [3][3][3][3]int) (*image.RGBA, error) {
 					// draw cell
 					draw.Draw(cell, cell.Bounds(), &image.Uniform{white}, image.ZP, draw.Src)
 					// draw number
-					d.Dot = fixed.P(cellSize/2, cellSize/2)
+					d.Dot = digitPos
 					d.DrawString(strconv.Itoa(num[i][j][x][y]))
 
 					draw.Draw(
