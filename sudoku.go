@@ -1,8 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"image"
 	"image/color"
+	"math/rand"
 	"strconv"
 
 	"github.com/golang/freetype/truetype"
@@ -12,8 +14,191 @@ import (
 	"golang.org/x/image/math/fixed"
 )
 
+// PopulateSudokuBoard with digits according to initial digits provided
+// by initPos
+func PopulateSudokuBoard(initPos [9][9]int) ([9][9]int, error) {
+	result := [9][9]int{} // result matrix
+	var bi, bj int        // box coord
+	var i, j int          // slot coord in a box
+	var candidate int
+	// population done by 3x3 box
+	startSlot := func() {
+		i, j = bi*3, bj*3
+	}
+	advanceSlot := func() {
+		j++
+	}
+	nextColumn := func() {
+		i++
+		j = bj * 3
+	}
+	lastSlotInBoxDone := func() bool {
+		return i == bi*3+2 && j > bj*3+2
+	}
+	lastSlotInColumnDone := func() bool {
+		return j > bj*3+2
+	}
+	setDigit := func() {
+		result[i][j] = candidate
+	}
+	unpopulateBox := func() {
+		for x := 0; x < 3; x++ {
+			for y := 0; y < 3; y++ {
+				result[bi*3+x][bj*3+y] = 0
+			}
+		}
+	}
+	digitProvided := func(i, j int) int {
+		if len(initPos) > i {
+			return initPos[i][j]
+		}
+		return 0
+	}
+
+	testH := func(d int) bool {
+		for x := 0; x < 9; x++ {
+			if result[x][j] == d || digitProvided(x, j) == d {
+				return false
+			}
+		}
+		return true
+	}
+
+	testV := func(d int) bool {
+		for y := 0; y < 9; y++ {
+			if result[i][y] == d || digitProvided(i, y) == d {
+				return false
+			}
+		}
+		return true
+	}
+
+	testInBox := func(d int) bool {
+		for x := bi * 3; x < bi*3+3; x++ {
+			for y := bj * 3; y < bj*3+3; y++ {
+				if result[x][y] == d || digitProvided(x, y) == d {
+					return false
+				}
+			}
+		}
+		return true
+	}
+
+	testDigit := func(d int) bool {
+		return testH(d) && testV(d) && testInBox(d)
+	}
+
+	setCandidate := func(d int) {
+		candidate = d
+	}
+
+	testSlot := func() bool {
+		if digitProvided(i, j) > 0 {
+			setCandidate(initPos[i][j])
+			return true
+		}
+		for _, val := range rand.Perm(9) {
+			d := val + 1
+			ok := testDigit(d)
+			if ok {
+				setCandidate(d)
+				return true
+			}
+		}
+		return false
+	}
+	populateBox := func() bool {
+		startSlot()
+		for {
+			if testSlot() {
+				setDigit()
+				advanceSlot()
+			} else {
+				break
+			}
+
+			if lastSlotInBoxDone() {
+				return true
+			}
+			if lastSlotInColumnDone() {
+				nextColumn()
+			}
+		}
+		unpopulateBox()
+		return false
+
+	}
+	startBox := func() {
+		bi = 0
+		bj = 0
+	}
+	advanceBox := func() {
+		bj++
+	}
+	noRegressBoxLeft := func() bool {
+		return bi < 0
+	}
+	lastBoxDone := func() bool {
+		return bi == 2 && bj > 2
+	}
+	lastBoxInColumnDone := func() bool {
+		return bj > 2
+	}
+	nextBoxColumn := func() {
+		bi++
+		bj = 0
+	}
+	isFirstBoxInColumn := func() bool {
+		return bj == 0
+	}
+	toLastSlotInBox := func() {
+		i, j = bi*3+2, bj*3+2
+	}
+
+	priorBox := func() {
+		bj--
+		toLastSlotInBox()
+	}
+	priorBoxColumn := func() {
+		bj = 2
+		bi--
+		toLastSlotInBox()
+	}
+	regressBox := func() {
+		if isFirstBoxInColumn() {
+			priorBoxColumn()
+		} else {
+			priorBox()
+		}
+	}
+	startBox()
+	for {
+		// solve for one box
+		if populateBox() {
+			advanceBox()
+			if lastBoxDone() {
+				break
+			}
+			if lastBoxInColumnDone() {
+				nextBoxColumn()
+			}
+
+		} else {
+			regressBox()
+			if noRegressBoxLeft() {
+				return result, fmt.Errorf("no solution found for init pos %v", initPos)
+			}
+			unpopulateBox()
+		}
+
+	}
+
+	return result, nil
+
+}
+
 // DrawSudokuBoard ...
-func DrawSudokuBoard(cellSize int, num [3][3][3][3]int) (*image.RGBA, error) {
+func DrawSudokuBoard(cellSize int, num [9][9]int) (*image.RGBA, error) {
 	black := color.RGBA{0, 0, 0, 255}
 	//white := color.RGBA{255, 255, 255, 255}
 	cellPadding := cellSize / 20
@@ -52,7 +237,7 @@ func DrawSudokuBoard(cellSize int, num [3][3][3][3]int) (*image.RGBA, error) {
 					draw.Draw(cell, cell.Bounds(), &image.Uniform{white}, image.ZP, draw.Src)
 					// draw number
 					d.Dot = digitPos
-					d.DrawString(strconv.Itoa(num[i][j][x][y]))
+					d.DrawString(strconv.Itoa(num[i*3+x][j*3+y]))
 
 					draw.Draw(
 						box3x3,
