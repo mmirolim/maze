@@ -105,17 +105,22 @@ func PopulateSudokuBoard(initPos [9][9]int) ([9][9]int, error) {
 	setCandidate := func(d int) {
 		candidate = d
 	}
-
+	digits := [9]int{1, 2, 3, 4, 5, 6, 7, 8, 9}
+	shuffleDigits := func() {
+		rand.Shuffle(len(digits), func(i, j int) {
+			digits[i], digits[j] = digits[j], digits[i]
+		})
+	}
 	testSlot := func() bool {
 		if digitProvided(i, j) > 0 {
 			setCandidate(initPos[i][j])
 			return true
 		}
-		for _, val := range rand.Perm(9) {
-			d := val + 1
-			ok := testDigit(d)
+		shuffleDigits()
+		for _, val := range digits {
+			ok := testDigit(val)
 			if ok {
-				setCandidate(d)
+				setCandidate(val)
 				return true
 			}
 		}
