@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"image"
 	"image/color"
@@ -149,70 +148,58 @@ func (b *ChessBoard) Draw() (*image.RGBA, error) {
 // Thus, a solution requires that no two queens
 // share the same row, column, or diagonal.”
 func TheEightQueensProblemMySolution() [][2]int {
-	// i is letters axis, j is numbers axis
-	check := func(i1, j1, i2, j2 int) bool {
-		// check horizontal and vertical coords
-		if i1 == i2 || j1 == j2 {
+	// auxiliary structures
+	isNotFreeRow := [9]bool{}
+	isNotFreeDig1 := [17]bool{}
+	isNotFreeDig2 := [15]bool{}
+
+	pieces := []int{}
+	var search func(i, j int) bool
+	search = func(i, j int) bool {
+		if j > 8 {
 			return false
 		}
+		// end of chessboard
+		if i > 8 {
+			return true
+		}
 
-		// check diagonal
-		c1pos := j1 - i1
-		c1neg := j1 + i1
-		c2pos := j2 - i2
-		c2neg := j2 + i2
-		if c1pos == c2pos || c1neg == c2neg {
-			return false
+		if !isNotFreeRow[j] && !isNotFreeDig1[i+j] && !isNotFreeDig2[j-i+7] {
+			// valid position
+			isNotFreeRow[j] = true
+			isNotFreeDig1[i+j] = true
+			isNotFreeDig2[j-i+7] = true
+			pieces = append(pieces, j)
+			i++
+			j = 1
+		} else {
+			j++
+		}
+
+		if !search(i, j) {
+			// on err take last element
+			// and continue from that position with shift
+			i := len(pieces)
+			j := pieces[len(pieces)-1]
+			isNotFreeRow[j] = false
+			isNotFreeDig1[i+j] = false
+			isNotFreeDig2[j-i+7] = false
+			pieces = pieces[:len(pieces)-1]
+			return search(i, j+1)
 		}
 
 		return true
 	}
 
-	pieces := [][2]int{}
-	var search func(i, j int) error
-	search = func(i, j int) error {
-		// found all pieces
-		if len(pieces) > 7 {
-			return nil
-		}
-		// change row
-		if j > 8 {
-			j = 1
-			i++
-		}
-		// end of chessboard
-		if i > 8 {
-			return errors.New("no valid position")
-		}
-		invalidPos := false
-		for _, p := range pieces {
-			if !check(p[0], p[1], i, j) {
-				invalidPos = true
-				break
-			}
-		}
-		if !invalidPos {
-			// valid position
-			pieces = append(pieces, [2]int{i, j})
-		}
-
-		j++
-		err := search(i, j)
-		if err != nil {
-			// on err take last element
-			// and continue from that position with shift
-			p := pieces[len(pieces)-1]
-			pieces = pieces[:len(pieces)-1]
-			return search(p[0], p[1]+1)
-		}
-
-		return nil
-	}
-
 	// start search
 	_ = search(1, 1)
 
-	return pieces
+	sl := [][2]int{}
+	for i := range pieces {
+		sl = append(sl, [2]int{i + 1, pieces[i]})
+	}
+
+	return sl
 }
 
 // TheEightQueensProblemNW solution to 8-queen puzzle
