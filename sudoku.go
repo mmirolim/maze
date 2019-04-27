@@ -21,6 +21,32 @@ func PopulateSudokuBoard(initPos [9][9]int) ([9][9]int, error) {
 	var bi, bj int        // box coord
 	var i, j int          // slot coord in a box
 	var candidate int
+	digitProvidedH := [9][10]bool{}
+	digitProvidedV := [9][10]bool{}
+	digitProvidedBox := [9][10]bool{}
+	for y := 0; y < 9; y++ {
+		for x := 0; x < 9; x++ {
+			d := initPos[x][y]
+			if d > 0 {
+				digitProvidedH[y][d] = true
+				digitProvidedV[x][d] = true
+				digitProvidedBox[(x/3)*3+y/3][d] = true
+			}
+		}
+
+	}
+
+	availDigitsH := [9][10]bool{}
+	availDigitsV := [9][10]bool{}
+	availDigitBox := [9][10]bool{}
+	for i := 0; i < 9; i++ {
+		for j := 0; j < 10; j++ {
+			availDigitBox[i][j] = true
+			availDigitsH[i][j] = true
+			availDigitsV[i][j] = true
+		}
+	}
+
 	// population done by 3x3 box
 	startSlot := func() {
 		i, j = bi*3, bj*3
@@ -39,49 +65,37 @@ func PopulateSudokuBoard(initPos [9][9]int) ([9][9]int, error) {
 		return j > bj*3+2
 	}
 	setDigit := func() {
+		availDigitsH[j][candidate] = false
+		availDigitsV[i][candidate] = false
+		availDigitBox[bi*3+bj][candidate] = false
 		result[i][j] = candidate
 	}
 	unpopulateBox := func() {
 		for x := 0; x < 3; x++ {
 			for y := 0; y < 3; y++ {
+				d := result[bi*3+x][bj*3+y]
+				availDigitsH[bj*3+y][d] = true
+				availDigitsV[bi*3+x][d] = true
+				availDigitBox[bi*3+bj][d] = true
 				result[bi*3+x][bj*3+y] = 0
 			}
 		}
 	}
 	digitProvided := func(i, j int) int {
-		if len(initPos) > i {
-			return initPos[i][j]
-		}
-		return 0
+		return initPos[i][j]
 	}
 
 	testH := func(d int) bool {
-		for x := 0; x < 9; x++ {
-			if result[x][j] == d || digitProvided(x, j) == d {
-				return false
-			}
-		}
-		return true
+		return availDigitsH[j][d] && !digitProvidedH[j][d]
 	}
 
 	testV := func(d int) bool {
-		for y := 0; y < 9; y++ {
-			if result[i][y] == d || digitProvided(i, y) == d {
-				return false
-			}
-		}
-		return true
+		return availDigitsV[i][d] && !digitProvidedV[i][d]
 	}
 
 	testInBox := func(d int) bool {
-		for x := bi * 3; x < bi*3+3; x++ {
-			for y := bj * 3; y < bj*3+3; y++ {
-				if result[x][y] == d || digitProvided(x, y) == d {
-					return false
-				}
-			}
-		}
-		return true
+		index := bi*3 + bj
+		return availDigitBox[index][d] && !digitProvidedBox[index][d]
 	}
 
 	testDigit := func(d int) bool {
