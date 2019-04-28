@@ -13,9 +13,32 @@ import (
 	"golang.org/x/image/math/fixed"
 )
 
-// PopulateSudokuBoard with digits according to initial digits provided
-// by initPos
-func PopulateSudokuBoard(initPos [9][9]int) ([9][9]int, error) {
+// Sudoku board
+type Sudoku struct {
+	initPos [9][9]int
+	result  [9][9]int
+}
+
+// NewSudoku returns sudoku with initPos set
+func NewSudoku(initPos [9][9]int) *Sudoku {
+	sudoku := new(Sudoku)
+	sudoku.initPos = initPos
+	return sudoku
+}
+
+// GetSolution returns sudoku solution matrix
+func (s *Sudoku) GetSolution() [9][9]int {
+	solution := [9][9]int{}
+	for i := 0; i < 9; i++ {
+		for j := 0; j < 9; j++ {
+			solution[i][j] = s.result[i][j]
+		}
+	}
+	return solution
+}
+
+// SolveWithBacktracking ---
+func (s *Sudoku) SolveWithBacktracking() error {
 	result := [9][9]int{} // result matrix
 	var i, j int          // slot coord in a box
 	var candidate int
@@ -24,7 +47,7 @@ func PopulateSudokuBoard(initPos [9][9]int) ([9][9]int, error) {
 	digitProvidedBox := [9][10]bool{}
 	for y := 0; y < 9; y++ {
 		for x := 0; x < 9; x++ {
-			d := initPos[x][y]
+			d := s.initPos[x][y]
 			if d > 0 {
 				digitProvidedH[y][d] = true
 				digitProvidedV[x][d] = true
@@ -54,7 +77,7 @@ func PopulateSudokuBoard(initPos [9][9]int) ([9][9]int, error) {
 	}
 
 	digitProvided := func(i, j int) int {
-		return initPos[i][j]
+		return s.initPos[i][j]
 	}
 
 	testH := func(d int) bool {
@@ -80,7 +103,7 @@ func PopulateSudokuBoard(initPos [9][9]int) ([9][9]int, error) {
 
 	testSlot := func() bool {
 		if digitProvided(i, j) > 0 {
-			setCandidate(initPos[i][j])
+			setCandidate(s.initPos[i][j])
 			return true
 		}
 
@@ -165,17 +188,18 @@ func PopulateSudokuBoard(initPos [9][9]int) ([9][9]int, error) {
 			regressSlot()
 			removeDigit()
 			if noRegressSlotLeft() {
-				return result, fmt.Errorf("no solution found for init pos %v", initPos)
+				return fmt.Errorf("no solution found for init pos %v", s.initPos)
 			}
 		}
 
 	}
 
-	return result, nil
+	s.result = result
+	return nil
 }
 
-// DrawSudokuBoard ...
-func DrawSudokuBoard(cellSize int, num [9][9]int) (*image.RGBA, error) {
+// Draw SudokuBoard with cellSize in px
+func (s *Sudoku) Draw(cellSize int) (*image.RGBA, error) {
 	black := color.RGBA{0, 0, 0, 255}
 	cellPadding := cellSize / 20
 	box3x3Padding := cellSize / 20
@@ -213,7 +237,7 @@ func DrawSudokuBoard(cellSize int, num [9][9]int) (*image.RGBA, error) {
 					draw.Draw(cell, cell.Bounds(), &image.Uniform{white}, image.ZP, draw.Src)
 					// draw number
 					d.Dot = digitPos
-					d.DrawString(strconv.Itoa(num[i*3+x][j*3+y]))
+					d.DrawString(strconv.Itoa(s.result[i*3+x][j*3+y]))
 
 					draw.Draw(
 						box3x3,

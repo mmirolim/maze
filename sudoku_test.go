@@ -6,12 +6,13 @@ import (
 	"testing"
 )
 
-func TestPopulateSudokuBoard(t *testing.T) {
-	r, err := PopulateSudokuBoard([9][9]int{})
+func TestSudokuSolveWithBacktrackingWithoutInitDigits(t *testing.T) {
+	sudoku := NewSudoku([9][9]int{})
+	err := sudoku.SolveWithBacktracking()
 	if err != nil {
 		t.Fatalf("error %v", err)
 	}
-	img, err := DrawSudokuBoard(60, r)
+	img, err := sudoku.Draw(60)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -26,7 +27,7 @@ func TestPopulateSudokuBoard(t *testing.T) {
 	}
 
 }
-func TestPopulateSudokuBoardWithInitPos(t *testing.T) {
+func TestSudokuSolveWithBacktrackingWithInitDigits(t *testing.T) {
 	initPos := [9][9]int{
 		[9]int{5, 6, 0, 8, 4, 7, 0, 0, 0},
 		[9]int{3, 0, 9, 0, 0, 0, 6, 0, 0},
@@ -49,10 +50,12 @@ func TestPopulateSudokuBoardWithInitPos(t *testing.T) {
 		[9]int{1, 4, 6, 2, 9, 5, 8, 3, 7},
 		[9]int{2, 8, 7, 3, 1, 6, 4, 5, 9},
 	}
-	r, err := PopulateSudokuBoard(initPos)
+	sudoku := NewSudoku(initPos)
+	err := sudoku.SolveWithBacktracking()
 	if err != nil {
 		t.Fatalf("error %v", err)
 	}
+	r := sudoku.GetSolution()
 	for i := 0; i < 9; i++ {
 		for j := 0; j < 9; j++ {
 			if r[i][j] != expectedResult[i][j] {
@@ -60,7 +63,7 @@ func TestPopulateSudokuBoardWithInitPos(t *testing.T) {
 			}
 		}
 	}
-	img, err := DrawSudokuBoard(60, r)
+	img, err := sudoku.Draw(60)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -75,30 +78,10 @@ func TestPopulateSudokuBoardWithInitPos(t *testing.T) {
 	}
 }
 
-func TestDrawSudokuBoard(t *testing.T) {
-	vals, err := PopulateSudokuBoard([9][9]int{})
-	if err != nil {
-		t.Fatalf("error %v", err)
-	}
-	img, err := DrawSudokuBoard(60, vals)
-	if err != nil {
-		t.Fatal(err)
-	}
-	f, err := os.Create("sudoku.png")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer f.Close()
-	err = png.Encode(f, img)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-}
-
-func BenchmarkPopulateSudokuBoard(b *testing.B) {
+func BenchmarkSudokuSolveWithBacktracking(b *testing.B) {
+	sudoku := NewSudoku([9][9]int{})
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		_, _ = PopulateSudokuBoard([9][9]int{})
+		_ = sudoku.SolveWithBacktracking()
 	}
 }
