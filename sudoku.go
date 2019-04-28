@@ -191,7 +191,7 @@ func DrawSudokuBoard(cellSize int, num [9][9]int) (*image.RGBA, error) {
 	if err != nil {
 		return nil, err
 	}
-	fontOptionSize := 30
+	fontOptionSize := cellSize / 2
 	fontFace := truetype.NewFace(fontVal, &truetype.Options{Size: float64(fontOptionSize)})
 	d := &font.Drawer{
 		Dst:  cell,
