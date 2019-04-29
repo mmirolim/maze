@@ -1,9 +1,12 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"image"
 	"image/color"
+	"math"
+	"math/rand"
 	"strconv"
 
 	"github.com/golang/freetype/truetype"
@@ -196,6 +199,222 @@ func (s *Sudoku) SolveWithBacktracking() error {
 
 	s.result = result
 	return nil
+}
+
+// SolveWithSA solves sudoku with Simulated Annealing metaheuristics
+func (s *Sudoku) SolveWithSA() error {
+	state := [9][9]int{}
+
+	// isFixedValueCell := func(i, j int) bool {
+	// 	return s.initPos[i][j] > 0
+	// }
+	randomValuesExcluding := func(val []int) []int {
+		out := []int{}
+		r := rand.Perm(9)
+	LOOP:
+		for i := range r {
+			for _, v := range val {
+				if r[i]+1 == v {
+					continue LOOP
+				}
+			}
+			out = append(out, r[i]+1)
+		}
+		return out
+	}
+
+	fixedValuesFromSquare := func(i, j int) []int {
+		r := []int{}
+		for x := 0; x < 3; x++ {
+			for y := 0; y < 3; y++ {
+				val := s.initPos[i*3+x][j*3+y]
+				if val > 0 {
+					r = append(r, val)
+				}
+			}
+		}
+		return r
+	}
+
+	// generate initial state
+	// square 3x3 contains the integers 1 through to 9 exactly once
+	fillSquare := func(i, j int) {
+		digits := randomValuesExcluding(fixedValuesFromSquare(i, j))
+		for x := 0; x < 3; x++ {
+			for y := 0; y < 3; y++ {
+				val := s.initPos[i*3+x][j*3+y]
+				if val == 0 {
+					val = digits[len(digits)-1]
+					digits = digits[:len(digits)-1]
+				}
+
+				state[i*3+x][j*3+y] = val
+
+			}
+		}
+	}
+
+	generateInitState := func() {
+		for i := 0; i < 3; i++ {
+			for j := 0; j < 3; j++ {
+				fillSquare(i, j)
+			}
+		}
+	}
+
+	generateInitState()
+
+	columnsEnergy := func() int {
+		e := 0
+		digits := map[int]bool{1: false, 2: false, 3: false, 4: false, 5: false, 6: false, 7: false, 8: false, 9: false}
+		for x := 0; x < 9; x++ {
+			for y := 0; y < 9; y++ {
+				digits[state[x][y]] = true
+			}
+			for d := range digits {
+				if !digits[d] {
+					e++
+				}
+				digits[d] = false
+			}
+		}
+		return e
+	}
+
+	rowsEnergy := func() int {
+		e := 0
+		digits := map[int]bool{1: false, 2: false, 3: false, 4: false, 5: false, 6: false, 7: false, 8: false, 9: false}
+		for y := 0; y < 9; y++ {
+			for x := 0; x < 9; x++ {
+				digits[state[x][y]] = true
+			}
+			for d := range digits {
+				if !digits[d] {
+					e++
+				}
+				digits[d] = false
+			}
+		}
+		return e
+	}
+
+	// E state energy function, cost function
+	E := func() int {
+		return rowsEnergy() + columnsEnergy()
+	}
+	isFixed := func(i, j int) bool {
+		return s.initPos[i][j] > 0
+	}
+	type cell struct {
+		i, j int
+	}
+	var cell1, cell2 cell
+	listOfNonFixedCells := func() []cell {
+		r := []cell{}
+		for i := 0; i < 9; i++ {
+			for j := 0; j < 9; j++ {
+				if !isFixed(i, j) {
+					r = append(r, cell{i, j})
+				}
+			}
+		}
+		return r
+	}()
+
+	listOfNonFixedNeighoursInSq := func(i, j int) []cell {
+		r := []cell{}
+		sqx, sqy := (i/3)*3, (j/3)*3
+		for x := sqx; x < sqx+3; x++ {
+			for y := sqy; y < sqy+3; y++ {
+				if isFixed(x, y) || (x == i && y == j) {
+					continue
+				}
+				r = append(r, cell{x, y})
+			}
+
+		}
+		return r
+	}
+
+	// neighbour candidate generator procedure
+	// mutate state to new state
+	neighbour := func() {
+		cell1 = listOfNonFixedCells[rand.Intn(len(listOfNonFixedCells))]
+		list2 := listOfNonFixedNeighoursInSq(cell1.i, cell1.j)
+		cell2 = list2[rand.Intn(len(list2))]
+		// swap cells
+		state[cell1.i][cell1.j], state[cell2.i][cell2.j] = state[cell2.i][cell2.j], state[cell1.i][cell1.j]
+	}
+	revert := func() {
+		state[cell1.i][cell1.j], state[cell2.i][cell2.j] = state[cell2.i][cell2.j], state[cell1.i][cell1.j]
+
+	}
+	// P acceptance probability function
+	P := func(e1, e2 int, t float64) float64 {
+		if e2 < e1 {
+			return 1.0
+		}
+		return math.Exp(-float64(e2-e1) / t)
+	}
+
+	alpha := 0.9
+	t0 := 1.0
+	// T temperature non increasing function
+	T := func(t float64) float64 {
+		return alpha * t
+	}
+	var err error
+	Tmin := 0.0001
+	t := t0
+	Elast := E()
+	var Enew int
+
+	// TODO maybe use restarts?
+	// TODO choose X
+	X := len(listOfNonFixedCells)
+LOOP:
+	for {
+		// update temp
+		t = T(t)
+		for i := 0; i < X; i++ {
+			// create new state
+			neighbour()
+			// compute new state Energy
+			Enew = E()
+			if Enew == 0 {
+				// solution found
+				break LOOP
+			}
+			// test transition probability
+			if P(Elast, Enew, t) > rand.Float64() {
+				Elast = Enew
+			} else {
+				// revert neighbour mutation
+				revert()
+			}
+
+		}
+		// stop if temp too low
+		if Tmin > t {
+			err = errors.New("temp limit reached")
+			break
+		}
+
+	}
+
+	s.result = state
+	return err
+}
+
+// PrintBoard prints board to stdout
+func (s *Sudoku) PrintBoard() {
+	for i := 0; i < 9; i++ {
+		for j := 0; j < 9; j++ {
+			fmt.Printf("%v ", s.result[j][i]) // output for debug
+		}
+		fmt.Println("")
+
+	}
 }
 
 // Draw SudokuBoard with cellSize in px
