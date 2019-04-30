@@ -205,9 +205,6 @@ func (s *Sudoku) SolveWithBacktracking() error {
 func (s *Sudoku) SolveWithSA() error {
 	state := [9][9]int{}
 
-	// isFixedValueCell := func(i, j int) bool {
-	// 	return s.initPos[i][j] > 0
-	// }
 	randomValuesExcluding := func(val []int) []int {
 		out := []int{}
 		r := rand.Perm(9)
@@ -315,28 +312,33 @@ func (s *Sudoku) SolveWithSA() error {
 		}
 		return r
 	}()
+	totalNumOfNonFixedCells := len(listOfNonFixedCells)
+	squareCells := [9]cell{}
 
-	listOfNonFixedNeighoursInSq := func(i, j int) []cell {
-		r := []cell{}
+	listNonFixedNeighoursInSq := func(i, j int) []cell {
 		sqx, sqy := (i/3)*3, (j/3)*3
-		for x := sqx; x < sqx+3; x++ {
-			for y := sqy; y < sqy+3; y++ {
+		lx, ly := sqx+3, sqy+3
+		id := 0
+		for x := sqx; x < lx; x++ {
+			for y := sqy; y < ly; y++ {
 				if isFixed(x, y) || (x == i && y == j) {
 					continue
 				}
-				r = append(r, cell{x, y})
+				squareCells[id] = cell{x, y}
+				id++
 			}
-
 		}
-		return r
+
+		return squareCells[0:id]
+
 	}
 
 	// neighbour candidate generator procedure
 	// mutate state to new state
 	neighbour := func() {
-		cell1 = listOfNonFixedCells[rand.Intn(len(listOfNonFixedCells))]
-		list2 := listOfNonFixedNeighoursInSq(cell1.i, cell1.j)
-		cell2 = list2[rand.Intn(len(list2))]
+		cell1 = listOfNonFixedCells[rand.Intn(totalNumOfNonFixedCells)]
+		list := listNonFixedNeighoursInSq(cell1.i, cell1.j)
+		cell2 = list[rand.Intn(len(list))]
 		// swap cells
 		state[cell1.i][cell1.j], state[cell2.i][cell2.j] = state[cell2.i][cell2.j], state[cell1.i][cell1.j]
 	}
