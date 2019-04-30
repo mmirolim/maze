@@ -300,7 +300,7 @@ func (s *Sudoku) SolveWithSA() error {
 	type cell struct {
 		i, j int
 	}
-	var cell1, cell2 cell
+
 	listOfNonFixedCells := func() []cell {
 		r := []cell{}
 		for i := 0; i < 9; i++ {
@@ -312,36 +312,45 @@ func (s *Sudoku) SolveWithSA() error {
 		}
 		return r
 	}()
+	squareId := func(i, j int) int {
+		return (i/3)*3 + j/3
+	}
 	totalNumOfNonFixedCells := len(listOfNonFixedCells)
-	squareCells := [9]cell{}
 
-	listNonFixedNeighoursInSq := func(i, j int) []cell {
-		sqx, sqy := (i/3)*3, (j/3)*3
-		lx, ly := sqx+3, sqy+3
-		id := 0
-		for x := sqx; x < lx; x++ {
-			for y := sqy; y < ly; y++ {
-				if isFixed(x, y) || (x == i && y == j) {
+	// compute list of non fixed cells for each square
+	allNonFixedCellsBySquare := func() [9][]cell {
+		out := [9][]cell{}
+		for i := 0; i < 9; i++ {
+			for j := 0; j < 9; j++ {
+				if isFixed(i, j) {
 					continue
 				}
-				squareCells[id] = cell{x, y}
-				id++
+				out[squareId(i, j)] = append(out[squareId(i, j)], cell{i, j})
 			}
+
 		}
 
-		return squareCells[0:id]
-
-	}
+		return out
+	}()
+	var cell1, cell2 cell
 
 	// neighbour candidate generator procedure
 	// mutate state to new state
 	neighbour := func() {
-		cell1 = listOfNonFixedCells[rand.Intn(totalNumOfNonFixedCells)]
-		list := listNonFixedNeighoursInSq(cell1.i, cell1.j)
-		cell2 = list[rand.Intn(len(list))]
+		cell1 = listOfNonFixedCells[(uint64(rand.Uint32())*uint64(totalNumOfNonFixedCells))>>32]
+		list := allNonFixedCellsBySquare[squareId(cell1.i, cell1.j)]
+		// move current cell to end of list
+		for i := range list {
+			if list[i].i == cell1.i && list[i].j == cell1.j {
+				list[i], list[len(list)-1] = list[len(list)-1], list[i]
+				break
+			}
+		}
+		cell2 = list[(uint64(rand.Uint32()) * uint64(len(list)-1) >> 32)] //use all cells except last one
 		// swap cells
 		state[cell1.i][cell1.j], state[cell2.i][cell2.j] = state[cell2.i][cell2.j], state[cell1.i][cell1.j]
 	}
+	// revert state
 	revert := func() {
 		state[cell1.i][cell1.j], state[cell2.i][cell2.j] = state[cell2.i][cell2.j], state[cell1.i][cell1.j]
 
