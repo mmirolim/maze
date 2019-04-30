@@ -264,44 +264,39 @@ func (s *Sudoku) SolveWithSA() error {
 
 	generateInitState()
 
-	columnsEnergy := func() int {
+	// E state energy function, cost function
+	// calculate number of not present numbers in each
+	// row and column, E is sum(Er, Ec)
+	const uint16Max uint16 = 65535
+	rowE := [9]uint16{uint16Max, uint16Max, uint16Max, uint16Max, uint16Max, uint16Max, uint16Max, uint16Max, uint16Max}
+	columnE := [9]uint16{uint16Max, uint16Max, uint16Max, uint16Max, uint16Max, uint16Max, uint16Max, uint16Max, uint16Max}
+
+	E := func() int {
 		e := 0
-		digits := map[int]bool{1: false, 2: false, 3: false, 4: false, 5: false, 6: false, 7: false, 8: false, 9: false}
+
 		for x := 0; x < 9; x++ {
 			for y := 0; y < 9; y++ {
-				digits[state[x][y]] = true
-			}
-			for d := range digits {
-				if !digits[d] {
-					e++
-				}
-				digits[d] = false
+				v := state[x][y]
+				columnE[x] &^= 1 << uint16(v-1)
+				rowE[y] &^= 1 << uint16(v-1)
 			}
 		}
+		for x := range columnE {
+			for i := 0; i < 9; i++ {
+				if columnE[x]&(1<<uint16(i)) != 0 {
+					e++
+				}
+				if rowE[x]&(1<<uint16(i)) != 0 {
+					e++
+				}
+			}
+			columnE[x] = uint16Max
+			rowE[x] = uint16Max
+		}
+
 		return e
 	}
 
-	rowsEnergy := func() int {
-		e := 0
-		digits := map[int]bool{1: false, 2: false, 3: false, 4: false, 5: false, 6: false, 7: false, 8: false, 9: false}
-		for y := 0; y < 9; y++ {
-			for x := 0; x < 9; x++ {
-				digits[state[x][y]] = true
-			}
-			for d := range digits {
-				if !digits[d] {
-					e++
-				}
-				digits[d] = false
-			}
-		}
-		return e
-	}
-
-	// E state energy function, cost function
-	E := func() int {
-		return rowsEnergy() + columnsEnergy()
-	}
 	isFixed := func(i, j int) bool {
 		return s.initPos[i][j] > 0
 	}
@@ -408,9 +403,13 @@ LOOP:
 
 // PrintBoard prints board to stdout
 func (s *Sudoku) PrintBoard() {
+	printState(s.result)
+}
+
+func printState(s [9][9]int) {
 	for i := 0; i < 9; i++ {
 		for j := 0; j < 9; j++ {
-			fmt.Printf("%v ", s.result[j][i]) // output for debug
+			fmt.Printf("%v ", s[j][i]) // output for debug
 		}
 		fmt.Println("")
 
