@@ -2,6 +2,7 @@ package main
 
 import (
 	"image/png"
+	"math/rand"
 	"os"
 	"testing"
 )
@@ -126,5 +127,17 @@ func BenchmarkSudokuSolveWithSA(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		_ = sudoku.SolveWithSA()
+	}
+}
+
+func BenchmarkRandIntn(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_ = rand.Intn(9)
+	}
+}
+
+func BenchmarkRandShift(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_ = int((rand.Int() * 9) >> 32)
 	}
 }

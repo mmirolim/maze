@@ -267,8 +267,10 @@ func (s *Sudoku) SolveWithSA() error {
 	const uint16Max uint16 = 65535
 	rowE := [9]uint16{uint16Max, uint16Max, uint16Max, uint16Max, uint16Max, uint16Max, uint16Max, uint16Max, uint16Max}
 	columnE := [9]uint16{uint16Max, uint16Max, uint16Max, uint16Max, uint16Max, uint16Max, uint16Max, uint16Max, uint16Max}
-
-	E := func() int {
+	rowsEnergy := [9]int{}
+	columnsEnergy := [9]int{}
+	// get initial E level
+	Elast := func() int {
 		e := 0
 
 		for x := 0; x < 9; x++ {
@@ -278,13 +280,16 @@ func (s *Sudoku) SolveWithSA() error {
 				rowE[y] &^= 1 << uint16(v-1)
 			}
 		}
+
 		for x := range columnE {
 			for i := 0; i < 9; i++ {
 				if columnE[x]&(1<<uint16(i)) != 0 {
 					e++
+					columnsEnergy[x]++
 				}
 				if rowE[x]&(1<<uint16(i)) != 0 {
 					e++
+					rowsEnergy[x]++
 				}
 			}
 			columnE[x] = uint16Max
@@ -292,13 +297,59 @@ func (s *Sudoku) SolveWithSA() error {
 		}
 
 		return e
+	}()
+	type cell struct {
+		i, j int
+	}
+	var cell1, cell2 cell
+	var newEc1, newEc2, newEr1, newEr2 int
+	// returns energy level computed from new state and previous rows, columns energy
+	E := func() int {
+		newEc1, newEc2, newEr1, newEr2 = 0, 0, 0, 0
+		ce1 := uint16Max
+		ce2 := uint16Max
+		re1 := uint16Max
+		re2 := uint16Max
+		for c := 0; c < 9; c++ {
+			ce1 &^= 1 << uint16(state[cell1.i][c]-1)
+			ce2 &^= 1 << uint16(state[cell2.i][c]-1)
+
+			re1 &^= 1 << uint16(state[c][cell1.j]-1)
+			re2 &^= 1 << uint16(state[c][cell2.j]-1)
+		}
+		var v uint16
+		for i := 0; i < 9; i++ {
+			v = 1 << uint16(i)
+			if ce1&v != 0 {
+				newEc1++
+			}
+			if ce2&v != 0 {
+				newEc2++
+			}
+
+			if re1&v != 0 {
+				newEr1++
+			}
+			if re2&v != 0 {
+				newEr2++
+			}
+		}
+
+		return Elast -
+			(columnsEnergy[cell1.i] - newEc1 + columnsEnergy[cell2.i] - newEc2) -
+			(rowsEnergy[cell1.j] - newEr1 + rowsEnergy[cell2.j] - newEr2)
+	}
+
+	setEnergy := func(enew int) {
+		Elast = enew
+		columnsEnergy[cell1.i] = newEc1
+		columnsEnergy[cell2.i] = newEc2
+		rowsEnergy[cell1.j] = newEr1
+		rowsEnergy[cell2.j] = newEr2
 	}
 
 	isFixed := func(i, j int) bool {
 		return s.initPos[i][j] > 0
-	}
-	type cell struct {
-		i, j int
 	}
 
 	listOfNonFixedCells := func() []cell {
@@ -312,6 +363,7 @@ func (s *Sudoku) SolveWithSA() error {
 		}
 		return r
 	}()
+
 	squareId := func(i, j int) int {
 		return (i/3)*3 + j/3
 	}
@@ -332,7 +384,6 @@ func (s *Sudoku) SolveWithSA() error {
 
 		return out
 	}()
-	var cell1, cell2 cell
 
 	// neighbour candidate generator procedure
 	// mutate state to new state
@@ -350,10 +401,9 @@ func (s *Sudoku) SolveWithSA() error {
 		// swap cells
 		state[cell1.i][cell1.j], state[cell2.i][cell2.j] = state[cell2.i][cell2.j], state[cell1.i][cell1.j]
 	}
-	// revert state
+
 	revert := func() {
 		state[cell1.i][cell1.j], state[cell2.i][cell2.j] = state[cell2.i][cell2.j], state[cell1.i][cell1.j]
-
 	}
 	// P acceptance probability function
 	P := func(e1, e2 int, t float64) float64 {
@@ -372,7 +422,6 @@ func (s *Sudoku) SolveWithSA() error {
 	var err error
 	Tmin := 0.0001
 	t := t0
-	Elast := E()
 	var Enew int
 
 	// TODO maybe use restarts?
@@ -391,9 +440,10 @@ LOOP:
 				// solution found
 				break LOOP
 			}
+
 			// test transition probability
 			if P(Elast, Enew, t) > rand.Float64() {
-				Elast = Enew
+				setEnergy(Enew)
 			} else {
 				// revert neighbour mutation
 				revert()
